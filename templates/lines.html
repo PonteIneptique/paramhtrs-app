@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Text</h2>
+    <p>{{document.text}}</p>
+    <h2>Validate Content</h2>
+    <form id="validation-form">
+        <table>
+            <thead>
+                <tr>
+                    <th>Canonical</th>
+                    <th>Normalized (Editable)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in lines %}
+                <tr>
+                    <td>{{ line.canonical }}</td>
+                    <td>
+                        <input type="text" id="norm-{{ line.id }}" value="{{ line.normalized }}" oninput="validateInput('{{ line.id }}')">
+                    </td>
+                    <td id="status-{{ line.id }}">{{ line.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<script>
+function validateInput(id) {
+    let inputField = document.getElementById(`norm-${id}`);
+    let statusField = document.getElementById(`status-${id}`);
+    
+    fetch("/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, normalized: inputField.value })
+    })
+    .then(response => response.json())
+    .then(data => {
+        statusField.textContent = data.status ? "Valid" : "Invalid";
+        statusField.style.color = data.status ? "green" : "red";
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        statusField.textContent = "Error";
+        statusField.style.color = "orange";
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Select a Document</h2>
+        <ul class="list-group">
+            {% for doc_id, doc in documents.items() %}
+                <li class="list-group-item">
+                    <a href="{{ url_for('lines', doc_id=doc_id) }}">{{ doc.title }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}
