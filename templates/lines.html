@@ -1,54 +1,142 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <h2>Text</h2>
-    <p>{{document.text}}</p>
-    <h2>Validate Content</h2>
-    <form id="validation-form">
-        <table>
+
+    <div id="document-text-container">
+        <h2>{{ document.title }}</h2>
+        <p id="document-text">{{ document.text }}</p>
+    </div>
+
+    <div class="container content-container">
+        <h4>Lines:</h4>
+        <p class="form-text text-muted">TAB moves to the next line, CTRL+Space activate merging with the previous line, Enter saves the line</p>
+        <table class="table table-bordered">
             <thead>
                 <tr>
-                    <th>Canonical</th>
-                    <th>Normalized (Editable)</th>
+                    <th>Normalized</th>
+                    <th>Merge?</th>
+                    <th>Action</th>
                     <th>Status</th>
                 </tr>
             </thead>
             <tbody>
-                {% for line in lines %}
-                <tr>
-                    <td>{{ line.canonical }}</td>
-                    <td>
-                        <input type="text" id="norm-{{ line.id }}" value="{{ line.normalized }}" oninput="validateInput('{{ line.id }}')">
-                    </td>
-                    <td id="status-{{ line.id }}">{{ line.status }}</td>
-                </tr>
+                {% for line in document.lines %}
+                    <tr>
+                        <td contenteditable="true" class="editable-cell"
+                            data-id="{{ line.id }}"
+                            data-start="{{ line.start }}"
+                            data-end="{{ line.end }}"
+                            onfocus="highlightText(this)"
+                            onblur="removeHighlight()">{{ line.normalized }}</td>
+                        <td>
+                            <input type="checkbox" class="merge-checkbox" data-id="{{ line.id }}">
+                        </td>
+                        <td>
+                            <button class="btn btn-success btn-sm" onclick="saveLine(this.closest('tr'))">Validate</button>
+                        </td>
+                        <td class="status-cell">Pending</td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </form>
-</div>
 
-<script>
-function validateInput(id) {
-    let inputField = document.getElementById(`norm-${id}`);
-    let statusField = document.getElementById(`status-${id}`);
-    
-    fetch("/validate", {
+    </div>
+
+    <script>
+        function highlightText(td) {
+            let start = parseInt(td.getAttribute("data-start"));
+            let end = parseInt(td.getAttribute("data-end"));
+            let textElement = document.getElementById("document-text");
+            let originalText = textElement.textContent;
+
+            // Restore original text before applying new highlight
+            textElement.innerHTML = originalText;
+
+            let highlightedText = "";
+            highlightedText += originalText.slice(0, start);
+            highlightedText += `<span class="highlight">${originalText.slice(start, end)}</span>`;
+            highlightedText += originalText.slice(end);
+
+            textElement.innerHTML = highlightedText;
+        }
+
+        function removeHighlight() {
+            let textElement = document.getElementById("document-text");
+            textElement.innerHTML = textElement.textContent; // Restore original text
+        }
+        document.addEventListener("DOMContentLoaded", function () {
+            let editableCells = document.querySelectorAll(".editable-cell");
+
+            editableCells.forEach(cell => {
+                cell.addEventListener("keydown", function (event) {
+                    if (event.key === "Tab") {
+                        event.preventDefault();
+                        moveToNextCell(this);
+                    } else if (event.key === " " && event.ctrlKey) {
+                        event.preventDefault();
+                        toggleMergeCheckbox(this);
+                    } else if (event.key === "Enter") {
+                        event.preventDefault();
+                        saveLine(this.closest("tr"));
+                    }
+                });
+            });
+        });
+
+        function moveToNextCell(currentCell) {
+            let cells = Array.from(document.querySelectorAll(".editable-cell"));
+            let index = cells.indexOf(currentCell);
+
+            if (index !== -1 && index < cells.length - 1) {
+                cells[index + 1].focus();
+            }
+        }
+
+        function toggleMergeCheckbox(cell) {
+            let row = cell.closest("tr");
+            let checkbox = row.querySelector(".merge-checkbox");
+
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
+function saveLine(row) {
+    let editableTd = row.querySelector(".editable-cell");
+    let mergeCheckbox = row.querySelector(".merge-checkbox");
+    let statusTd = row.querySelector(".status-cell");
+    let lineId = editableTd.getAttribute("data-id");
+    let newText = editableTd.textContent.trim();
+    let mergeWithPrevious = mergeCheckbox.checked;
+
+    statusTd.textContent = "Saving...";
+
+    fetch("/update_line", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: id, normalized: inputField.value })
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "id": lineId,
+            "normalized": newText,
+            "merge": mergeWithPrevious
+        })
     })
     .then(response => response.json())
     .then(data => {
-        statusField.textContent = data.status ? "Valid" : "Invalid";
-        statusField.style.color = data.status ? "green" : "red";
+        if (data.status === "success") {
+            statusTd.textContent = "✔ Saved";
+            statusTd.style.color = "green";
+        } else {
+            statusTd.textContent = "❌ Error";
+            statusTd.style.color = "red";
+        }
     })
-    .catch(error => {
-        console.error("Error:", error);
-        statusField.textContent = "Error";
-        statusField.style.color = "orange";
+    .catch(() => {
+        statusTd.textContent = "❌ Error";
+        statusTd.style.color = "red";
     });
 }
-</script>
+
+    </script>
 {% endblock %}

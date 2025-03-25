@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Validation Page{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #document-text-container {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        /* Ensure content doesn't get hidden */
+        .content-container {
+            margin-top: 120px;
+        }
+
+        /* Highlight when focused */
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+
+        /* Editable table cells */
+        td[contenteditable="true"] {
+            background-color: #fff8dc;
+            cursor: text;
+            min-width: 150px;
+        }
+
+        td[contenteditable="true"]:focus {
+            outline: 2px solid #007bff;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container mt-5">
