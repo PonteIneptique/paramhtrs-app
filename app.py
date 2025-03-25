@@ -1,17 +1,31 @@
 from flask import Flask, render_template
+from flask_sqlalchemy import SQLAlchemy
+import click
 import json
 from typing import List
 from dataclasses import dataclass, field
 
 
-@dataclass
-class Line:
-    id: int
-    start: int
-    canonical: str
-    normalized: str
-    status: str = "Pending"
-    merge: bool = False
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///data.db"  # Use SQLite for simplicity
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+
+class Doc(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Auto-increment ID
+    title = db.Column(db.String(255), unique=True, nullable=False)  # Ensure unique title
+    text = db.Column(db.Text, nullable=False)
+    lines = db.relationship("Line", backref="doc", cascade="all, delete-orphan", lazy=True)
+
+class Line(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Auto-increment ID
+    start = db.Column(db.Integer, nullable=False)
+    canonical = db.Column(db.Text, nullable=False)
+    normalized = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default="Pending")
+    merge = db.Column(db.Boolean, default=False)
+    doc_id = db.Column(db.Integer, db.ForeignKey("doc.id"), nullable=False)  # Relationship to Doc
 
     @property
     def length(self):
@@ -22,75 +36,88 @@ class Line:
         return len(self.canonical) + self.start
 
 
-@dataclass
-class Doc:
-    id: int
-    title: str
-    text: str
-    lines: List[Line] = field(default_factory=list)
-
-    def preprocess_lines(self):
-        """Ensure that any uncovered text is assigned an empty Line object."""
-        new_lines = []
-        last_end = 0
-        line_id = 1  # Start IDs at 1
-
-        # Sort lines by start index
-        sorted_lines = sorted(self.lines, key=lambda l: l.start)
-
-        for line in sorted_lines:
-            # If there's a gap before this line, create an empty line
-            if line.start > last_end:
-                if self.text[last_end:line.start].strip():
-                    new_lines.append(
-                        Line(id=line_id, start=last_end, canonical=self.text[last_end:line.start], normalized="")
-                    )
-                    line_id += 1
-
-            # Add the actual mapped line
-            new_lines.append(Line(id=line_id, start=line.start, canonical=line.canonical, normalized=line.normalized))
-            line_id += 1
-            last_end = line.end  # Move last_end forward
-
-        # If there's text left at the end, add an empty line
-        if last_end < len(self.text) and self.text[last_end:].strip():
-            new_lines.append(Line(id=line_id, start=last_end, canonical=self.text[last_end:], normalized=""))
-
-        self.lines = new_lines  # Replace with preprocessed lines
-
-
-app = Flask(__name__)
-
-with open("source/n10.jsonl") as f:
-    elements = {}
-    for line in f:
-        j = json.loads(line)
-        elements[j["uid"]] = Doc(
-            j["uid"],
-            j["id"],
-            j["text"],
-            lines=[
-                Line(
-                    idx,
-                    line["begin"],
-                    canonical=line["text"],
-                    normalized=line["wits"][0]["text"]
-                )
-                for idx, line in enumerate(j["lines"])
-                if line.get("wits")
-            ]
-        )
-        elements[j["uid"]].preprocess_lines()
-
 @app.route("/")
 def index():
     # Pass the documents to the template
-    return render_template("index.html", documents=elements)
+    return render_template("index.html", documents=Doc.query.all())
 
 
-@app.route("/document/<doc_id>/lines") # Should deal with lines / page
+@app.route("/document/<int:doc_id>/lines") # Should deal with lines / page
 def lines(doc_id):
-    doc_id = int(doc_id)
-    return render_template("lines.html", lines=elements[doc_id].lines, document=elements[doc_id])
+    doc = Doc.query.get_or_404(doc_id)
+    return render_template(
+        "lines.html", lines=doc.lines, document=doc)
 
-app.run(debug=True)
+
+@app.cli.group("db")
+def db_group():
+    return
+
+@db_group.command("create")
+def db_create():
+    with app.app_context():
+        db.create_all()
+    print("DB Created")
+
+@db_group.command("reset")
+def db_create():
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+    print("DB Created")
+
+@app.cli.command("import")
+@click.argument("jsonl")
+def import_(jsonl):
+    with app.app_context():
+        with open(jsonl) as f:
+            for line in f:
+                j = json.loads(line)
+
+                # Check if document already exists
+                existing_doc = Doc.query.filter_by(title=j["id"]).first()
+                if existing_doc:
+                    continue  # Skip if it exists
+
+                # Create and insert new document
+                new_doc = Doc(title=j["id"], text=j["text"])
+                db.session.add(new_doc)
+                db.session.commit()  # Save to get an ID
+
+                # Prepare for preprocessing
+                last_end = 0
+                line_id = 1  # Start ID from 1
+
+                sorted_lines = sorted(j["lines"], key=lambda l: l["begin"])  # Sort by start index
+
+                for line_data in sorted_lines:
+                    if not line_data.get("wits"):
+                        continue
+
+                    start = line_data["begin"]
+                    canonical = line_data["text"]
+                    normalized = line_data["wits"][0]["text"]
+
+                    # Handle uncovered text before this line
+                    if start > last_end:
+                        uncovered_text = j["text"][last_end:start].strip()
+                        if uncovered_text:
+                            uncovered_line = Line(
+                                start=last_end, canonical=uncovered_text, normalized="", doc_id=new_doc.id
+                            )
+                            db.session.add(uncovered_line)
+                            line_id += 1
+
+                    # Add actual mapped line
+                    new_line = Line(start=start, canonical=canonical, normalized=normalized, doc_id=new_doc.id)
+                    db.session.add(new_line)
+                    last_end = start + len(canonical)  # Update last_end
+
+                # Handle remaining text at the end
+                if last_end < len(j["text"]) and j["text"][last_end:].strip():
+                    trailing_line = Line(
+                        start=last_end, canonical=j["text"][last_end:], normalized="", doc_id=new_doc.id
+                    )
+                    db.session.add(trailing_line)
+
+                db.session.commit()  # Save all lines
