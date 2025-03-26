@@ -92,6 +92,15 @@
         <a href="{{url_for('bp_main.home_route')}}" aria-label="Home"><i class="fas fa-home"></i></a>
         <a href="{{url_for('bp_main.documents_route')}}" aria-label="Correct a document"><i class="fas fa-book"></i></a>
         <a href="{{url_for('bp_main.import_jsonl_route')}}" aria-label="Upload a JsonL"><i class="fas fa-upload"></i></a>
+        {% if current_user.is_anonymous %}
+        <a href="{{url_for('bp_auth.login')}}" aria-label="Login"><i class="fa-solid fa-right-to-bracket"></i></a>
+        <a href="{{url_for('bp_auth.register')}}" aria-label="Register"><i class="fa-solid fa-user-plus"></i></a>
+        {% else %}
+        <a href="{{url_for('bp_auth.logout')}}" aria-label="Logout"><i class="fa-solid fa-right-from-bracket"></i></a>
+            {% if current_user.is_admin %}
+            <a href="{{url_for('bp_auth.admin_panel')}}" aria-label="Admin Panel"><i class="fa-solid fa-users"></i></a>
+            {% endif %}
+        {% endif %}
     </div>
     <div class="container mt-5">
         {% block content %}{% endblock %}

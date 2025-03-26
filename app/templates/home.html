@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="alert alert-{{ messages[0][0] }} mt-4">
+            {{ messages[0][1] }}
+        </div>
+    {% endif %}
+{% endwith %}
+
 <h1>Welcome on eAbbrevium</h1>
 
 <img src="{{url_for('static', filename='images/welcome.png')}}" class="rounded mx-auto d-block" style="max-height:300px;" />

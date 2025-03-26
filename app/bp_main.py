@@ -4,6 +4,7 @@ import io
 
 from .db import db, Doc, Line, import_jsonl_stream
 from .forms import UploadForm
+from flask_login import login_required
 
 bp_main = Blueprint("bp_main", __name__)
 
@@ -13,6 +14,7 @@ def home_route():
     return render_template("home.html")
 
 @bp_main.route("/document", methods=["GET"])
+@login_required
 def documents_route():
     # Get the filter query from the request, if provided
     search_query = request.args.get('search', '')
@@ -38,6 +40,7 @@ def documents_route():
 
 
 @bp_main.route("/document/<int:doc_id>", methods=["POST"])
+@login_required
 def document_route(doc_id):
     document = Doc.query.get_or_404(doc_id)
     # Try to capture and debug the incoming data
@@ -58,6 +61,7 @@ def document_route(doc_id):
 
 
 @bp_main.route("/document/<int:doc_id>/line/<int:line_id>", methods=["POST"])
+@login_required
 def line_route(doc_id, line_id):
     try:
         data = request.get_json()
@@ -78,6 +82,7 @@ def line_route(doc_id, line_id):
 
 
 @bp_main.route("/document/<int:doc_id>/line") # Should deal with lines / page
+@login_required
 def lines_route(doc_id):
     doc = Doc.query.get_or_404(doc_id)
     return render_template(
@@ -85,6 +90,7 @@ def lines_route(doc_id):
 
 
 @bp_main.route("/import", methods=["GET", "POST"])
+@login_required
 def import_jsonl_route():
     form = UploadForm()
 
