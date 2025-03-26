@@ -32,7 +32,7 @@
         const submitButton = this.querySelector('button[type="submit"]');
         submitButton.disabled = true;
 
-        fetch('/import', {
+        fetch('{{url_for('bp_main.import_jsonl_route')}}', {
             method: 'POST',
             body: formData
         })
