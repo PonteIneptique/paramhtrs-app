@@ -115,12 +115,6 @@
         <a href="{{ url_for('bp_main.home_route') }}" aria-label="Home">
             <i class="fas fa-home"></i> <span>Home</span>
         </a>
-        <a href="{{ url_for('bp_main.documents_route') }}" aria-label="Documents">
-            <i class="fas fa-book"></i> <span>Documents</span>
-        </a>
-        <a href="{{ url_for('bp_main.import_jsonl_route') }}" aria-label="Upload a JsonL">
-            <i class="fas fa-upload"></i> <span>Upload JSONL</span>
-        </a>
         {% if current_user.is_anonymous %}
         <a href="{{ url_for('bp_auth.login') }}" aria-label="Login">
             <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
@@ -129,6 +123,12 @@
             <i class="fa-solid fa-user-plus"></i> <span>Register</span>
         </a>
         {% else %}
+        <a href="{{ url_for('bp_main.documents_route') }}" aria-label="Documents">
+            <i class="fas fa-book"></i> <span>Documents</span>
+        </a>
+        <a href="{{ url_for('bp_main.import_jsonl_route') }}" aria-label="Upload a JsonL">
+            <i class="fas fa-upload"></i> <span>Upload JSONL</span>
+        </a>
         <a href="{{ url_for('bp_auth.logout') }}" aria-label="Logout">
             <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
         </a>
