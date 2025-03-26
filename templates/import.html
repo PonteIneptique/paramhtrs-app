@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h1>Import JSONL File</h1>
+
+        <form id="importForm" method="POST" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                <label for="file">Choose a JSONL file</label>
+                {{ form.file(class="form-control", id="fileInput") }}
+            </div>
+            <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+    <!-- Auto-scrolling div to show import results -->
+    <div id="importResult" class="mt-4" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
+        <!-- The results of the import will be added here -->
+    </div>
+</div>
+
+<script>
+    document.getElementById('importForm').addEventListener('submit', function(event) {
+        event.preventDefault();  // Prevent the form from submitting the traditional way
+
+        const formData = new FormData(this);
+        const resultDiv = document.getElementById('importResult');
+
+        // Clear the previous results before starting the new import
+        resultDiv.innerHTML = '';
+
+        // Disable the submit button to prevent multiple submissions
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+
+        fetch('/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let done = false;
+            let chunk = '';
+
+            // Process the response stream as it arrives
+            return new Promise((resolve, reject) => {
+                function push() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            resolve();
+                            return;
+                        }
+
+                        // Decode the chunk and append it to the result
+                        chunk += decoder.decode(value, { stream: true });
+                        const lines = chunk.split('<br>');
+                        chunk = lines.pop();  // Keep the last incomplete chunk for the next read
+
+                        // Append each line to the result div
+                        lines.forEach(line => {
+                            const div = document.createElement('div');
+                            div.innerHTML = line;
+                            resultDiv.appendChild(div);
+                        });
+
+                        // Scroll to the bottom of the div
+                        resultDiv.scrollTop = resultDiv.scrollHeight;
+
+                        push();  // Continue reading the stream
+                    }).catch(reject);
+                }
+                push();
+            });
+        })
+        .then(() => {
+            // Enable the submit button after the import is complete
+            submitButton.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error during the import:', error);
+            alert('An error occurred during the import. Please try again.');
+            submitButton.disabled = false;
+        });
+    });
+</script>
+{% endblock %}

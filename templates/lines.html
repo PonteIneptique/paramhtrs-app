@@ -101,12 +101,13 @@
             let lineContent = td.textContent.trim();
             let contentDisplay = document.createElement("div");
             contentDisplay.style.position = "absolute";
+            contentDisplay.className = "junicode";
             contentDisplay.style.top = `${td.getBoundingClientRect().top - 30}px`;
             contentDisplay.style.left = `${td.getBoundingClientRect().left}px`;
             contentDisplay.style.backgroundColor = "#fff";
             contentDisplay.style.padding = "5px";
             contentDisplay.style.border = "1px solid #ddd";
-            contentDisplay.textContent = lineContent;
+            contentDisplay.textContent = originalText.slice(start, end);
             document.body.appendChild(contentDisplay);
 
             td.addEventListener('blur', function() {

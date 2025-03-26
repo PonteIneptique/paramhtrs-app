@@ -1,13 +1,22 @@
-from flask import Flask, render_template, request, jsonify, url_for, redirect
+from flask import Flask, render_template, request, jsonify, url_for, redirect, Response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, or_
 import click
+import io
 import json
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
+from wtforms import SubmitField
 
+
+class UploadForm(FlaskForm):
+    file = FileField("JSONL File", validators=[FileRequired()])
+    submit = SubmitField('Submit')
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///data.db"  # Use SQLite for simplicity
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SECRET_KEY"] = "RandomKey"
 db = SQLAlchemy(app)
 
 
@@ -62,6 +71,67 @@ class Line(db.Model):
         self.normalized = data.get("normalized", self.normalized)
         self.merge = data.get("merge", self.merge)
         self.status = data.get("status", self.status)
+
+
+def import_jsonl_stream(file_stream):
+    with app.app_context():
+        for line in file_stream:
+            j = json.loads(line)
+
+            # Check if document already exists
+            existing_doc = Doc.query.filter_by(title=j["id"]).first()
+            if existing_doc:
+                yield f"Document with ID {j['id']} already exists. Skipping...", "warning", "bold"
+                continue  # Skip if it exists
+
+            # Create and insert new document
+            new_doc = Doc(title=j["id"], text=j["text"])
+            db.session.add(new_doc)
+            db.session.commit()  # Save to get an ID
+            yield f"Document {j['id']} created successfully.", "success", "bold"
+
+            # Prepare for preprocessing
+            last_end = 0
+            line_id = 1  # Start ID from 1
+
+            sorted_lines = sorted(j["lines"], key=lambda l: l["begin"])  # Sort by start index
+
+            for line_data in sorted_lines:
+                if not line_data.get("wits"):
+                    continue
+
+                start = line_data["begin"]
+                canonical = line_data["text"]
+                normalized = line_data["wits"][0]["text"]
+
+                # Handle uncovered text before this line
+                if start > last_end:
+                    uncovered_text = j["text"][last_end:start].strip()
+                    if uncovered_text:
+                        uncovered_line = Line(
+                            start=last_end, canonical=uncovered_text, normalized="", doc_id=new_doc.id
+                        )
+                        db.session.add(uncovered_line)
+                        line_id += 1
+                        yield f"Uncovered line added at position {last_end} for `{uncovered_text}`", "warning", ""
+
+                # Add actual mapped line
+                new_line = Line(start=start, canonical=canonical, normalized=normalized, doc_id=new_doc.id)
+                db.session.add(new_line)
+                last_end = start + len(canonical)  # Update last_end
+                yield f"Line added: {canonical}", "info", ""
+
+            # Handle remaining text at the end
+            if last_end < len(j["text"]) and j["text"][last_end:].strip():
+                trailing_line = Line(
+                    start=last_end, canonical=j["text"][last_end:], normalized="", doc_id=new_doc.id
+                )
+                db.session.add(trailing_line)
+                yield f"Uncovered line added at position {last_end} for `{uncovered_text}`", "warning", ""
+
+            db.session.commit()  # Save all lines
+            yield f"Document {j['id']} import completed.", "success", ""
+
 
 @app.route("/")
 def home_route():
@@ -139,6 +209,29 @@ def lines_route(doc_id):
         "lines.html", lines=doc.lines, document=doc)
 
 
+@app.route("/import", methods=["GET", "POST"])
+def import_jsonl_route():
+    form = UploadForm()
+
+    if request.method == "POST" and form.validate_on_submit():
+        file = form.file.data
+        if file:
+            # Convert the uploaded file into a BytesIO object
+            file_stream = io.BytesIO(file.read())  # Read the file content into memory
+
+            def generate():
+                # Pass the file stream directly to the import function (no need for readlines)
+                for message, cls, details in import_jsonl_stream(file_stream):
+                    if details == "bold":
+                        yield f"<div class='bg-{cls} text-dark bg-opacity-10' style='font-weight:bold;'>{message}</div><br>"
+                    else:
+                        yield f"<div class='bg-{cls} text-dark bg-opacity-10' style='font-size:smaller;'>{message}</div><br>"
+
+            g = generate()
+            return Response(g, content_type='text/html')
+
+    return render_template("import.html", form=form)
+
 @app.cli.group("db")
 def db_group():
     return
@@ -159,55 +252,6 @@ def db_create():
 @app.cli.command("import")
 @click.argument("jsonl")
 def import_(jsonl):
-    with app.app_context():
-        with open(jsonl) as f:
-            for line in f:
-                j = json.loads(line)
-
-                # Check if document already exists
-                existing_doc = Doc.query.filter_by(title=j["id"]).first()
-                if existing_doc:
-                    continue  # Skip if it exists
-
-                # Create and insert new document
-                new_doc = Doc(title=j["id"], text=j["text"])
-                db.session.add(new_doc)
-                db.session.commit()  # Save to get an ID
-
-                # Prepare for preprocessing
-                last_end = 0
-                line_id = 1  # Start ID from 1
-
-                sorted_lines = sorted(j["lines"], key=lambda l: l["begin"])  # Sort by start index
-
-                for line_data in sorted_lines:
-                    if not line_data.get("wits"):
-                        continue
-
-                    start = line_data["begin"]
-                    canonical = line_data["text"]
-                    normalized = line_data["wits"][0]["text"]
-
-                    # Handle uncovered text before this line
-                    if start > last_end:
-                        uncovered_text = j["text"][last_end:start].strip()
-                        if uncovered_text:
-                            uncovered_line = Line(
-                                start=last_end, canonical=uncovered_text, normalized="", doc_id=new_doc.id
-                            )
-                            db.session.add(uncovered_line)
-                            line_id += 1
-
-                    # Add actual mapped line
-                    new_line = Line(start=start, canonical=canonical, normalized=normalized, doc_id=new_doc.id)
-                    db.session.add(new_line)
-                    last_end = start + len(canonical)  # Update last_end
-
-                # Handle remaining text at the end
-                if last_end < len(j["text"]) and j["text"][last_end:].strip():
-                    trailing_line = Line(
-                        start=last_end, canonical=j["text"][last_end:], normalized="", doc_id=new_doc.id
-                    )
-                    db.session.add(trailing_line)
-
-                db.session.commit()  # Save all lines
+    with open(jsonl) as f:
+        for x, *_ in import_jsonl_stream(f):
+            print(x.strip())
