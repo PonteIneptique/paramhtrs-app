@@ -1,9 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 import click
 import json
-from typing import List
-from dataclasses import dataclass, field
 
 
 app = Flask(__name__)
@@ -17,6 +16,17 @@ class Doc(db.Model):
     title = db.Column(db.String(255), unique=True, nullable=False)  # Ensure unique title
     text = db.Column(db.Text, nullable=False)
     lines = db.relationship("Line", backref="doc", cascade="all, delete-orphan", lazy=True)
+
+    @property
+    def validation_percentage(self):
+        # Total number of lines in the document
+        total_lines = db.session.query(func.count(Line.id)).filter(Line.doc_id == self.id).scalar()
+        # Number of validated lines
+        validated_lines = db.session.query(func.count(Line.id)).filter(Line.doc_id == self.id,
+                                                                       Line.status == "Validated").scalar()
+
+        # Calculate the validation percentage
+        return round((validated_lines / total_lines * 100) if total_lines > 0 else 0.0, 1)
 
 class Line(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Auto-increment ID
@@ -49,9 +59,30 @@ class Line(db.Model):
         self.status = data.get("status", self.status)
 
 @app.route("/")
-def index():
+def home():
+    return render_template("home.html")
+
+@app.route("/document", methods=["GET"])
+def documents():
+    # Get the filter query from the request, if provided
+    search_query = request.args.get('search', '')
+
+    # Apply the search filter if there's a query, and order by title
+    query = Doc.query.filter(Doc.title.ilike(f'%{search_query}%')).order_by(Doc.title)
+
+    # Set up pagination (e.g., 10 documents per page)
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    documents_paginated = query.paginate(page=page, per_page=per_page)
+
     # Pass the documents to the template
-    return render_template("index.html", documents=Doc.query.all())
+    return render_template(
+        "docs.html",
+        documents=documents_paginated.items,
+        pagination=documents_paginated,
+        search_query=search_query
+    )
+
 
 
 @app.route("/document/<int:doc_id>/line") # Should deal with lines / page
