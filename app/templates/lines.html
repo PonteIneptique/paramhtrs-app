@@ -57,7 +57,7 @@
             const docId = "{{ document.id }}"; // Get document ID from template variable
 
             // Send asynchronous request to update the document name
-            fetch(`{{url_for('document_route', doc_id=document.id)}}`, {
+            fetch(`{{url_for('bp_main.document_route', doc_id=document.id)}}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -158,7 +158,7 @@
         }
 
 function saveUri(lineId) {
-    return "{{url_for('.line_route', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
+    return "{{url_for('bp_main.line_route', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
 }
 
 function saveLine(row) {
