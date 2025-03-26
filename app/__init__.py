@@ -54,6 +54,7 @@ def db_create():
 @app.cli.command("import")
 @click.argument("jsonl")
 def import_(jsonl):
-    with open(jsonl) as f:
-        for x, *_ in import_jsonl_stream(f):
-            print(x.strip())
+    with app.app_context():
+        with open(jsonl) as f:
+            for x, *_ in import_jsonl_stream(f):
+                print(x.strip())

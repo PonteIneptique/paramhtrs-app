@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, Response
+from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
 from sqlalchemy import func, or_
 import io
 
@@ -108,7 +108,6 @@ def import_jsonl_route():
                     else:
                         yield f"<div class='bg-{cls} text-dark bg-opacity-10' style='font-size:smaller;'>{message}</div><br>"
 
-            g = generate()
-            return Response(g, content_type='text/html')
+            return Response(stream_with_context(generate()), content_type='text/html')
 
     return render_template("import.html", form=form)

@@ -13,7 +13,6 @@
             font-weight: normal;
             font-style: normal;
         }
-
         body {
             display: flex;
         }
@@ -30,14 +29,23 @@
             flex-direction: column;
             align-items: center;
             padding-top: 20px;
+            transition: width 0.3s ease;
+            overflow: hidden;
+        }
+
+        .sidebar:hover {
+            width: 180px; /* Expand the sidebar on hover */
         }
 
         .sidebar a {
             color: white;
             text-decoration: none;
             padding: 15px;
-            display: block;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            transition: background-color 0.3s;
+            white-space: nowrap;
         }
 
         .sidebar a:hover {
@@ -47,8 +55,19 @@
 
         .sidebar i {
             font-size: 24px;
+            margin-right: 10px;
         }
 
+        /* Hide text by default and show when sidebar expands */
+        .sidebar span {
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar:hover span {
+            display: inline;
+            opacity: 1;
+        }
         #document-text-container, .junicode {
             font-family: 'JunicodeVF', serif;
         }
@@ -89,20 +108,46 @@
 </head>
 <body class="bg-light">
     <div class="sidebar">
-        <a href="{{url_for('bp_main.home_route')}}" aria-label="Home"><i class="fas fa-home"></i></a>
-        <a href="{{url_for('bp_main.documents_route')}}" aria-label="Correct a document"><i class="fas fa-book"></i></a>
-        <a href="{{url_for('bp_main.import_jsonl_route')}}" aria-label="Upload a JsonL"><i class="fas fa-upload"></i></a>
+        <a href="{{ url_for('bp_main.home_route') }}" aria-label="Home">
+            <i class="fas fa-home"></i> <span>Home</span>
+        </a>
+        <a href="{{ url_for('bp_main.documents_route') }}" aria-label="Documents">
+            <i class="fas fa-book"></i> <span>Documents</span>
+        </a>
+        <a href="{{ url_for('bp_main.import_jsonl_route') }}" aria-label="Upload a JsonL">
+            <i class="fas fa-upload"></i> <span>Upload JSONL</span>
+        </a>
         {% if current_user.is_anonymous %}
-        <a href="{{url_for('bp_auth.login')}}" aria-label="Login"><i class="fa-solid fa-right-to-bracket"></i></a>
-        <a href="{{url_for('bp_auth.register')}}" aria-label="Register"><i class="fa-solid fa-user-plus"></i></a>
+        <a href="{{ url_for('bp_auth.login') }}" aria-label="Login">
+            <i class="fa-solid fa-right-to-bracket"></i> <span>Login</span>
+        </a>
+        <a href="{{ url_for('bp_auth.register') }}" aria-label="Register">
+            <i class="fa-solid fa-user-plus"></i> <span>Register</span>
+        </a>
         {% else %}
-        <a href="{{url_for('bp_auth.logout')}}" aria-label="Logout"><i class="fa-solid fa-right-from-bracket"></i></a>
-            {% if current_user.is_admin %}
-            <a href="{{url_for('bp_auth.admin_panel')}}" aria-label="Admin Panel"><i class="fa-solid fa-users"></i></a>
-            {% endif %}
+        <a href="{{ url_for('bp_auth.logout') }}" aria-label="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
+        </a>
+        <a href="{{ url_for('bp_auth.change_password') }}" aria-label="Change Password">
+            <i class="fa-solid fa-key"></i> <span>Change Password</span>
+        </a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('bp_auth.admin_panel') }}" aria-label="Admin Panel">
+            <i class="fa-solid fa-users"></i> <span>Admin Panel</span>
+        </a>
+        {% endif %}
         {% endif %}
     </div>
     <div class="container mt-5">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="alert alert-{{ messages[0][0] }} mt-4">
+                    {{ messages[0][1] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

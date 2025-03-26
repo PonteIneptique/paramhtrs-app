@@ -84,18 +84,63 @@ def reject_user(user_id):
     flash(f"User {user.username} has been rejected.", "success")
     return redirect(url_for("bp_main.home_route"))
 
+@bp_auth.route("/change_password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        old_password = request.form["old_password"]
+        new_password = request.form["new_password"]
+        confirm_password = request.form["confirm_password"]
 
-@bp_auth.route("/admin", methods=["GET"])
+        # Validate old password
+        if not current_user.check_password(old_password):
+            flash("Old password is incorrect.", "danger")
+            return redirect(url_for("bp_auth.change_password"))
+
+        # Check if new passwords match
+        if new_password != confirm_password:
+            flash("New passwords do not match.", "danger")
+            return redirect(url_for("bp_auth.change_password"))
+
+        # Update the password
+        current_user.set_password(new_password)
+        db.session.commit()
+
+        flash("Your password has been updated successfully.", "success")
+        return redirect(url_for("bp_main.home_route"))
+
+    return render_template("change_password.html")
+
+@bp_auth.route("/admin", methods=["GET", "POST"])
 @login_required
 def admin_panel():
     if not current_user.is_admin:
         flash("You are not authorized to access the admin panel.", "danger")
-        return redirect(url_for("bp_auth.home_route"))
+        return redirect(url_for("bp_main.home_route"))
 
-    # Query for users who are not approved yet
+    # Handle password update request
+    if request.method == "POST":
+        user_id = request.form.get("user_id")
+        new_password = request.form.get("new_password")
+
+        if user_id and new_password:
+            user = User.query.get(user_id)
+            if user and user.is_approved:
+                user.set_password(new_password)  # Hash and update password
+                db.session.commit()
+                flash(f"Password updated for {user.username}.", "success")
+            else:
+                flash("User not found or not approved.", "danger")
+        else:
+            flash("Invalid input for password update.", "danger")
+
+    # Get unapproved users
     unapproved_users = User.query.filter_by(is_approved=False).all()
+    # Get approved users
+    approved_users = User.query.filter_by(is_approved=True).all()
 
-    return render_template("admin.html", users=unapproved_users)
+    return render_template("admin.html", unapproved_users=unapproved_users, approved_users=approved_users)
+
 
 # User loader for Flask-Login
 @login_manager.user_loader
