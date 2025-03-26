@@ -3,7 +3,14 @@
 {% block content %}
 
     <div id="document-text-container">
-        <h2>{{ document.title }}</h2>
+        <h2 id="document-title">{{ document.title }}</h2>
+        <!-- Add a form to change the document's human-readable title -->
+        <form method="POST" id="rename-form">
+            <div class="input-group mb-3">
+              <input id="human_readable" type="text" class="form-control" placeholder="Human readable title" aria-label="Change for a human readable title" aria-describedby="adapt-title">
+              <button class="btn btn-outline-secondary" type="submit" id="adapt-title">Change title</button>
+            </div>
+        </form>
         <p id="document-text">{{ document.text }}</p>
     </div>
 
@@ -43,6 +50,37 @@
     </div>
 
     <script type="text/javascript">
+        document.getElementById("rename-form").addEventListener("submit", function(event) {
+            event.preventDefault(); // Prevent form from submitting the traditional way
+
+            const newTitle = document.getElementById("human_readable").value;
+            const docId = "{{ document.id }}"; // Get document ID from template variable
+
+            // Send asynchronous request to update the document name
+            fetch(`{{url_for('document_route', doc_id=document.id)}}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "human_readable": newTitle
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // Update the document title on the page dynamically
+                    document.getElementById("document-title").textContent = newTitle;
+                } else {
+                    alert("Failed to update the document title.");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error updating the document title.");
+            });
+        });
+
         function highlightText(td) {
             let start = parseInt(td.getAttribute("data-start"));
             let end = parseInt(td.getAttribute("data-end"));
@@ -58,12 +96,29 @@
             highlightedText += originalText.slice(end);
 
             textElement.innerHTML = highlightedText;
+
+            // Display line content above the current focused cell
+            let lineContent = td.textContent.trim();
+            let contentDisplay = document.createElement("div");
+            contentDisplay.style.position = "absolute";
+            contentDisplay.style.top = `${td.getBoundingClientRect().top - 30}px`;
+            contentDisplay.style.left = `${td.getBoundingClientRect().left}px`;
+            contentDisplay.style.backgroundColor = "#fff";
+            contentDisplay.style.padding = "5px";
+            contentDisplay.style.border = "1px solid #ddd";
+            contentDisplay.textContent = lineContent;
+            document.body.appendChild(contentDisplay);
+
+            td.addEventListener('blur', function() {
+                contentDisplay.remove();
+            });
         }
 
         function removeHighlight() {
             let textElement = document.getElementById("document-text");
             textElement.innerHTML = textElement.textContent; // Restore original text
         }
+
         document.addEventListener("DOMContentLoaded", function () {
             let editableCells = document.querySelectorAll(".editable-cell");
 
@@ -102,7 +157,7 @@
         }
 
 function saveUri(lineId) {
-    return "{{url_for('.update_line', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
+    return "{{url_for('.line_route', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
 }
 
 function saveLine(row) {

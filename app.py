@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import click
 import json
 
@@ -15,7 +15,12 @@ class Doc(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Auto-increment ID
     title = db.Column(db.String(255), unique=True, nullable=False)  # Ensure unique title
     text = db.Column(db.Text, nullable=False)
+    human_readable = db.Column(db.String(255), nullable=True)  # Add human-readable name
     lines = db.relationship("Line", backref="doc", cascade="all, delete-orphan", lazy=True)
+
+    @property
+    def displayable_title(self):
+        return self.human_readable if self.human_readable else self.title
 
     @property
     def validation_percentage(self):
@@ -59,16 +64,19 @@ class Line(db.Model):
         self.status = data.get("status", self.status)
 
 @app.route("/")
-def home():
+def home_route():
     return render_template("home.html")
 
 @app.route("/document", methods=["GET"])
-def documents():
+def documents_route():
     # Get the filter query from the request, if provided
     search_query = request.args.get('search', '')
 
     # Apply the search filter if there's a query, and order by title
-    query = Doc.query.filter(Doc.title.ilike(f'%{search_query}%')).order_by(Doc.title)
+    query = Doc.query.filter(or_(
+        Doc.title.ilike(f'%{search_query}%'),
+        Doc.human_readable.ilike(f"%{search_query}%")
+    )).order_by(func.lower(Doc.human_readable), func.lower(Doc.title))
 
     # Set up pagination (e.g., 10 documents per page)
     page = request.args.get('page', 1, type=int)
@@ -84,16 +92,28 @@ def documents():
     )
 
 
+@app.route("/document/<int:doc_id>", methods=["POST"])
+def document_route(doc_id):
+    document = Doc.query.get_or_404(doc_id)
+    # Try to capture and debug the incoming data
+    data = request.get_json()  # This will parse the incoming JSON body
+    if not data:
+        return jsonify({"status": "error", "message": "No JSON data received"}), 400
 
-@app.route("/document/<int:doc_id>/line") # Should deal with lines / page
-def lines(doc_id):
-    doc = Doc.query.get_or_404(doc_id)
-    return render_template(
-        "lines.html", lines=doc.lines, document=doc)
+    # Get the new name from the JSON data
+    new_name = data.get("human_readable")
+
+    if new_name:
+        # Update the document's human_readable field
+        document.human_readable = new_name
+        db.session.commit()
+        return jsonify({"status": "success"}), 200
+    else:
+        return jsonify({"status": "error", "message": "No 'human_readable' field provided"}), 400
 
 
 @app.route("/document/<int:doc_id>/line/<int:line_id>", methods=["POST"])
-def update_line(doc_id, line_id):
+def line_route(doc_id, line_id):
     try:
         data = request.get_json()
 
@@ -105,12 +125,19 @@ def update_line(doc_id, line_id):
         line.update_from_dict(data)
         db.session.commit()
 
-
         return jsonify({"status": "success", "message": "Line updated successfully"})
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/document/<int:doc_id>/line") # Should deal with lines / page
+def lines_route(doc_id):
+    doc = Doc.query.get_or_404(doc_id)
+    return render_template(
+        "lines.html", lines=doc.lines, document=doc)
+
 
 @app.cli.group("db")
 def db_group():
@@ -120,14 +147,14 @@ def db_group():
 def db_create():
     with app.app_context():
         db.create_all()
-    print("DB Created")
+    click.echo("DB Created")
 
 @db_group.command("reset")
 def db_create():
     with app.app_context():
         db.drop_all()
         db.create_all()
-    print("DB Created")
+    click.echo("DB Recreated")
 
 @app.cli.command("import")
 @click.argument("jsonl")

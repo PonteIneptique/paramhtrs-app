@@ -5,7 +5,7 @@
         <h2>Select a Document</h2>
 
         <!-- Search Filter Form -->
-        <form method="get" action="{{ url_for('documents') }}">
+        <form method="get" action="{{ url_for('documents_route') }}">
             <input type="text" name="search" class="form-control" placeholder="Search by title" value="{{ search_query }}">
         </form>
 
@@ -16,8 +16,8 @@
                     {% if validation_percentage == 100 %} list-group-item-success
                     {% elif validation_percentage > 0 %} list-group-item-warning
                     {% endif %}">
-                    <a href="{{ url_for('lines', doc_id=doc.id) }}">
-                        ({{ validation_percentage }}%) {{ doc.title }}
+                    <a href="{{ url_for('lines_route', doc_id=doc.id) }}">
+                        ({{ validation_percentage }}%) {{ doc.displayable_title }}
                     </a>
                 </li>
             {% endfor %}
@@ -28,7 +28,7 @@
             <ul class="pagination justify-content-center">
                 {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('documents', page=pagination.prev_num, search=search_query) }}" aria-label="Previous">
+                        <a class="page-link" href="{{ url_for('documents_route', page=pagination.prev_num, search=search_query) }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
@@ -37,7 +37,7 @@
                 {% for page_num in pagination.iter_pages() %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('documents', page=page_num, search=search_query) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('documents_route', page=page_num, search=search_query) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -46,7 +46,7 @@
 
                 {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('documents', page=pagination.next_num, search=search_query) }}" aria-label="Next">
+                        <a class="page-link" href="{{ url_for('documents_route', page=pagination.next_num, search=search_query) }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
