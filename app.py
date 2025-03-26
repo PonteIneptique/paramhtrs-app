@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import click
 import json
@@ -28,6 +28,13 @@ class Line(db.Model):
     doc_id = db.Column(db.Integer, db.ForeignKey("doc.id"), nullable=False)  # Relationship to Doc
 
     @property
+    def status_css(self):
+        if self.status.lower() == "validated":
+            return "table-success"
+        else:
+            return "table-pending"
+
+    @property
     def length(self):
         return len(self.canonical)
 
@@ -35,6 +42,11 @@ class Line(db.Model):
     def end(self):
         return len(self.canonical) + self.start
 
+    def update_from_dict(self, data):
+        """Update the Line object from a dictionary."""
+        self.normalized = data.get("normalized", self.normalized)
+        self.merge = data.get("merge", self.merge)
+        self.status = data.get("status", self.status)
 
 @app.route("/")
 def index():
@@ -42,12 +54,32 @@ def index():
     return render_template("index.html", documents=Doc.query.all())
 
 
-@app.route("/document/<int:doc_id>/lines") # Should deal with lines / page
+@app.route("/document/<int:doc_id>/line") # Should deal with lines / page
 def lines(doc_id):
     doc = Doc.query.get_or_404(doc_id)
     return render_template(
         "lines.html", lines=doc.lines, document=doc)
 
+
+@app.route("/document/<int:doc_id>/line/<int:line_id>", methods=["POST"])
+def update_line(doc_id, line_id):
+    try:
+        data = request.get_json()
+
+        line = Line.query.get(line_id)
+        if not line:
+            return jsonify({"status": "error", "message": "Line not found"}), 404
+
+        # Update the line with new data
+        line.update_from_dict(data)
+        db.session.commit()
+
+
+        return jsonify({"status": "success", "message": "Line updated successfully"})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.cli.group("db")
 def db_group():

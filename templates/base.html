@@ -38,9 +38,12 @@
 
         /* Editable table cells */
         td[contenteditable="true"] {
-            background-color: #fff8dc;
             cursor: text;
             min-width: 150px;
+        }
+
+        .table-pending td[contenteditable="true"] {
+            background-color: #fff8dc;
         }
 
         td[contenteditable="true"]:focus {

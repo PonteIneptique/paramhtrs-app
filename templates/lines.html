@@ -21,7 +21,7 @@
             </thead>
             <tbody>
                 {% for line in document.lines %}
-                    <tr>
+                    <tr class="{{line.status_css}}">
                         <td contenteditable="true" class="editable-cell"
                             data-id="{{ line.id }}"
                             data-start="{{ line.start }}"
@@ -34,7 +34,7 @@
                         <td>
                             <button class="btn btn-success btn-sm" onclick="saveLine(this.closest('tr'))">Validate</button>
                         </td>
-                        <td class="status-cell">Pending</td>
+                        <td class="status-cell">{{line.status}}</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -42,7 +42,7 @@
 
     </div>
 
-    <script>
+    <script type="text/javascript">
         function highlightText(td) {
             let start = parseInt(td.getAttribute("data-start"));
             let end = parseInt(td.getAttribute("data-end"));
@@ -101,6 +101,10 @@
             }
         }
 
+function saveUri(lineId) {
+    return "{{url_for('.update_line', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
+}
+
 function saveLine(row) {
     let editableTd = row.querySelector(".editable-cell");
     let mergeCheckbox = row.querySelector(".merge-checkbox");
@@ -111,22 +115,22 @@ function saveLine(row) {
 
     statusTd.textContent = "Saving...";
 
-    fetch("/update_line", {
+    fetch(saveUri(lineId), {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            "id": lineId,
             "normalized": newText,
-            "merge": mergeWithPrevious
+            "merge": mergeWithPrevious,
+            "status": "Validated"
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === "success") {
-            statusTd.textContent = "✔ Saved";
-            statusTd.style.color = "green";
+            statusTd.textContent = "✔ Validated";
+            statusTd.parentNode.className = "table-success";
         } else {
             statusTd.textContent = "❌ Error";
             statusTd.style.color = "red";
