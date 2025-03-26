@@ -19,6 +19,7 @@
                     <a href="{{ url_for('bp_main.lines_route', doc_id=doc.id) }}">
                         ({{ validation_percentage }}%) {{ doc.displayable_title }}
                     </a>
+                    <a class="btn btn-primary btn-small" href="{{ url_for('bp_main.document_route', doc_id=doc.id) }}"><i class="fa-solid fa-file-arrow-down"></i> Download</a>
                 </li>
             {% endfor %}
         </ul>

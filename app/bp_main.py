@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
 from sqlalchemy import func, or_
 import io
@@ -39,10 +41,31 @@ def documents_route():
     )
 
 
-@bp_main.route("/document/<int:doc_id>", methods=["POST"])
+@bp_main.route("/document/<int:doc_id>", methods=["GET", "POST"])
 @login_required
 def document_route(doc_id):
     document = Doc.query.get_or_404(doc_id)
+    if request.method == "GET":
+        lines = []
+        for line in document.lines:
+            if line.status.lower() != "validated":
+                continue
+            if line.merge and lines:
+                lines[-1]["abbr"] += line.canonical.strip("\n")
+                lines[-1]["expan"] += line.normalized.strip("\n")
+            else:
+                lines.append({
+                    "abbr": line.canonical.strip("\n"),
+                    "expan": line.normalized.strip("\n")
+                })
+        return Response(json.dumps({
+            "source": document.title,
+            "readable": document.human_readable,
+            "lines": lines
+        }), mimetype="application/json", headers={
+            "Content-Disposition": "attachment",
+            "filename": f"doc{doc_id}.json"
+        })
     # Try to capture and debug the incoming data
     data = request.get_json()  # This will parse the incoming JSON body
     if not data:
