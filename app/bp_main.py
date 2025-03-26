@@ -1,7 +1,7 @@
 import json
 
 from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, case
 import io
 
 from .db import db, Doc, Line, import_jsonl_stream
@@ -20,6 +20,34 @@ def home_route():
 def documents_route():
     # Get the filter query from the request, if provided
     search_query = request.args.get('search', '')
+
+    if request.args.get("download"):
+        if request.args.get("incomplete"):
+            docs =  (
+                db.session.query(Doc)
+                .join(Line, Doc.id == Line.doc_id)
+                .group_by(Doc.id)
+                .having(func.sum(case((Line.status != "Pending", 1), else_=0)) >= 1)  # No unvalidated lines
+                .all()
+            )
+        else:
+            docs = (
+                db.session.query(Doc)
+                .join(Line, Doc.id == Line.doc_id)
+                .group_by(Doc.id)
+                .having(
+                    func.count(case((Line.status == "Pending", 1), else_=None)) == 0
+                )  # No pending lines
+                .all()
+            )
+        return Response(
+            json.dumps([document.json() for document in docs]),
+            mimetype="application/json",
+            headers={
+                "Content-Disposition": "attachment",
+                "filename": f"eAbbrevium.json"
+            }
+        )
 
     # Apply the search filter if there's a query, and order by title
     query = Doc.query.filter(or_(
@@ -46,23 +74,7 @@ def documents_route():
 def document_route(doc_id):
     document = Doc.query.get_or_404(doc_id)
     if request.method == "GET":
-        lines = []
-        for line in document.lines:
-            if line.status.lower() != "validated":
-                continue
-            if line.merge and lines:
-                lines[-1]["abbr"] += line.canonical.strip("\n")
-                lines[-1]["expan"] += line.normalized.strip("\n")
-            else:
-                lines.append({
-                    "abbr": line.canonical.strip("\n"),
-                    "expan": line.normalized.strip("\n")
-                })
-        return Response(json.dumps({
-            "source": document.title,
-            "readable": document.human_readable,
-            "lines": lines
-        }), mimetype="application/json", headers={
+        return Response(json.dumps(document.json()), mimetype="application/json", headers={
             "Content-Disposition": "attachment",
             "filename": f"doc{doc_id}.json"
         })
@@ -97,7 +109,7 @@ def line_route(doc_id, line_id):
         line.update_from_dict(data)
         db.session.commit()
 
-        return jsonify({"status": "success", "message": "Line updated successfully"})
+        return jsonify({"status": "success", "line_status": line.status, "message": "Line updated successfully"})
 
     except Exception as e:
         db.session.rollback()

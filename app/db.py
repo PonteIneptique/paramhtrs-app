@@ -40,10 +40,38 @@ class Doc(db.Model):
         total_lines = db.session.query(func.count(Line.id)).filter(Line.doc_id == self.id).scalar()
         # Number of validated lines
         validated_lines = db.session.query(func.count(Line.id)).filter(Line.doc_id == self.id,
-                                                                       Line.status == "Validated").scalar()
+                                                                       Line.status != "Pending").scalar()
 
         # Calculate the validation percentage
         return round((validated_lines / total_lines * 100) if total_lines > 0 else 0.0, 1)
+
+    def json(self):
+        lines = []
+        excluded = []
+        for line in self.lines:
+            if line.status.lower() == "excluded":
+                excluded.append({
+                    "abbr": line.canonical.strip("\n"),
+                    "expan": line.normalized.strip("\n")
+                })
+                continue
+            elif line.status.lower() != "validated":
+                continue
+
+            if line.merge and lines:
+                lines[-1]["abbr"] += line.canonical.strip("\n")
+                lines[-1]["expan"] += line.normalized.strip("\n")
+            else:
+                lines.append({
+                    "abbr": line.canonical.strip("\n"),
+                    "expan": line.normalized.strip("\n")
+                })
+        return {
+            "source": self.title,
+            "readable": self.human_readable,
+            "lines": lines,
+            "excluded": excluded
+        }
 
 
 class Line(db.Model):
@@ -59,6 +87,8 @@ class Line(db.Model):
     def status_css(self):
         if self.status.lower() == "validated":
             return "table-success"
+        elif self.status.lower() == "excluded":
+            return "table-muted"
         else:
             return "table-pending"
 

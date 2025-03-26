@@ -19,7 +19,7 @@
 
     <div class="container content-container">
         <h4>Lines:</h4>
-        <p class="form-text text-muted">TAB moves to the next line, CTRL+Space activate merging with the previous line, Enter saves the line</p>
+        <p class="form-text text-muted">TAB moves to the next line, CTRL+Space activate merging with the previous line, Enter saves the line, ESC for excluding a line.</p>
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -43,6 +43,7 @@
                         </td>
                         <td>
                             <button class="btn btn-success btn-sm" onclick="saveLine(this.closest('tr'))">Validate</button>
+                            <button class="btn btn-danger btn-sm" onclick="saveLine(this.closest('tr'))">Exclude</button>
                         </td>
                         <td class="status-cell">{{line.status}}</td>
                     </tr>
@@ -137,6 +138,9 @@
                     } else if (event.key === "Enter") {
                         event.preventDefault();
                         saveLine(this.closest("tr"));
+                    } else if (event.key === "Escape") {  // Handle Escape key
+                        event.preventDefault();
+                        excludeLine(this.closest("tr"));
                     }
                 });
             });
@@ -160,8 +164,48 @@
             }
         }
 
-function saveUri(lineId) {
-    return "{{url_for('bp_main.line_route', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
+    function saveUri(lineId) {
+        return "{{url_for('bp_main.line_route', doc_id=0, line_id=1)}}".replace("1", lineId).replace("0", "{{document.id}}")
+    }
+
+
+    function saveLinePromise(statusTd, lineId, body) {
+        fetch(saveUri(lineId), {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(body)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                statusTd.textContent = data.line_status;
+                if (data.line_status == "Validated") {
+                    statusTd.parentNode.className = "table-success";
+                } else if (data.line_status == "Excluded"){
+                    statusTd.parentNode.className = "table-muted";
+                }
+            } else {
+                statusTd.textContent = "❌ Error";
+                statusTd.parentNode.className = "table-danger";
+            }
+        })
+        .catch(() => {
+            statusTd.textContent = "❌ Error";
+            statusTd.style.color = "red";
+            statusTd.parentNode.className = "table-danger";
+        });
+    }
+
+function excludeLine(row) {
+    let editableTd = row.querySelector(".editable-cell");
+    let statusTd = row.querySelector(".status-cell");
+    let lineId = editableTd.getAttribute("data-id");
+
+    statusTd.textContent = "Saving...";
+
+    saveLinePromise(statusTd, lineId, {
+        "status": "Excluded"
+    });
 }
 
 function saveLine(row) {
@@ -174,30 +218,10 @@ function saveLine(row) {
 
     statusTd.textContent = "Saving...";
 
-    fetch(saveUri(lineId), {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            "normalized": newText,
-            "merge": mergeWithPrevious,
-            "status": "Validated"
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === "success") {
-            statusTd.textContent = "✔ Validated";
-            statusTd.parentNode.className = "table-success";
-        } else {
-            statusTd.textContent = "❌ Error";
-            statusTd.style.color = "red";
-        }
-    })
-    .catch(() => {
-        statusTd.textContent = "❌ Error";
-        statusTd.style.color = "red";
+    saveLinePromise(statusTd, lineId, {
+        "normalized": newText,
+        "merge": mergeWithPrevious,
+        "status": "Validated"
     });
 }
 

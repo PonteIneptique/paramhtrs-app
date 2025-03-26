@@ -8,7 +8,12 @@
         <form method="get" action="{{ url_for('bp_main.documents_route') }}">
             <input type="text" name="search" class="form-control" placeholder="Search by title" value="{{ search_query }}">
         </form>
-
+        <hr/>
+        <p>
+            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route')}}?download=True"><i class="fa-solid fa-file-arrow-down"></i> Download all fully corrected document</a>
+            <a class="btn btn-secondary btn-sm" href="{{url_for('bp_main.documents_route')}}?download=True&incomplete=True"><i class="fa-solid fa-file-arrow-down"></i> Download all documents with corrections</a>
+        </p>
+        <hr/>
         <ul class="list-group mt-3">
             {% for doc in documents %}
                 {% set validation_percentage = doc.validation_percentage %}
