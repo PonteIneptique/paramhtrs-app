@@ -89,9 +89,9 @@
 </head>
 <body class="bg-light">
     <div class="sidebar">
-        <a href="{{url_for('home_route')}}" aria-label="Home"><i class="fas fa-home"></i></a>
-        <a href="{{url_for('documents_route')}}" aria-label="Correct a document"><i class="fas fa-book"></i></a>
-        <a href="{{url_for('import_jsonl_route')}}" aria-label="Upload a JsonL"><i class="fas fa-upload"></i></a>
+        <a href="{{url_for('bp_main.home_route')}}" aria-label="Home"><i class="fas fa-home"></i></a>
+        <a href="{{url_for('bp_main.documents_route')}}" aria-label="Correct a document"><i class="fas fa-book"></i></a>
+        <a href="{{url_for('bp_main.import_jsonl_route')}}" aria-label="Upload a JsonL"><i class="fas fa-upload"></i></a>
     </div>
     <div class="container mt-5">
         {% block content %}{% endblock %}
