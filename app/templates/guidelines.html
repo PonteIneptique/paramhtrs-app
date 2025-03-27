@@ -43,20 +43,20 @@ Ne pas résoudre l’abréviation de nom quand pas le contexte.
     <h2>4. Hyphen and Line Break Handling</h2>
     <p>Remove hyphens at the end of lines and click merge on the next line.</p>
 
-    <h2>5. Apostrophe Addition</h2>
+    <h2>5. Accent Normalization</h2>
+    <p>Introduce accents where applicable to the language.</p>
+
+    <h2>6. Apostrophe Addition</h2>
     <p>For languages that use apostrophes, restore them where necessary.</p>
     <div class="example">
-        &lt;choice&gt;&lt;orig&gt;larive&lt;/orig&gt;&lt;reg&gt;l'arrivee&lt;/reg&gt;&lt;/choice&gt;
+        &lt;choice&gt;&lt;orig&gt;larive&lt;/orig&gt;&lt;reg&gt;l'arivé&lt;/reg&gt;&lt;/choice&gt;
     </div>
-
-    <h2>6. Accent Restoration</h2>
-    <p>Restore missing accents where applicable to the language.</p>
 
     <h2>7. Missing Letter Restoration</h2>
     <p>Add inferred missing letters, such as initials, if they can be easily deduced.</p>
 
     <h2>8. Punctuation Spacing</h2>
-    <p>Ensure there is a space after punctuation marks.</p>
+    <p>Ensure the normalisation of spacing around punctuation marks: remove any space before them and restore a space after if necessary.</p>
 
     <h2>9. Regional Variations</h2>
     <p>Consider regional variations when resolving abbreviations or spelling inconsistencies.</p>
