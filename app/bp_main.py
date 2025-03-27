@@ -124,6 +124,11 @@ def lines_route(doc_id):
         "lines.html", lines=doc.lines, document=doc)
 
 
+@bp_main.route("/guidelines") # Should deal with lines / page
+def guidelines_route():
+    return render_template("guidelines.html")
+
+
 @bp_main.route("/import", methods=["GET", "POST"])
 @login_required
 def import_jsonl_route():
