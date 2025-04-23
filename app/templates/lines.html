@@ -46,7 +46,7 @@
                             onfocus="highlightText(this)"
                             onblur="removeHighlight()">{{ line.normalized }}</td>
                         <td>
-                            <input type="checkbox" class="merge-checkbox" data-id="{{ line.id }}">
+                            <input type="checkbox" class="merge-checkbox" data-id="{{ line.id }}" {% if line.merge %}checked{% endif %}>
                         </td>
                         <td>
                             <button class="btn btn-success btn-sm" onclick="saveLine(this.closest('tr'))">Validate</button>
