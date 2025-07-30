@@ -1,7 +1,7 @@
 import json
 
 from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
-from sqlalchemy import func, or_, case
+from sqlalchemy import func, or_, case, and_
 import io
 
 from .db import db, Doc, Line, import_jsonl_stream
@@ -20,6 +20,7 @@ def home_route():
 def documents_route():
     # Get the filter query from the request, if provided
     search_query = request.args.get('search', '')
+    hide_query = request.args.get('hide', False, type=bool)
 
     if request.args.get("download"):
         if request.args.get("incomplete"):
@@ -50,10 +51,25 @@ def documents_route():
         )
 
     # Apply the search filter if there's a query, and order by title
-    query = Doc.query.filter(or_(
-        Doc.title.ilike(f'%{search_query}%'),
-        Doc.human_readable.ilike(f"%{search_query}%")
-    )).order_by(func.lower(Doc.human_readable), func.lower(Doc.title))
+    if hide_query:
+        query = Doc.query.join(Doc.lines).filter(
+            and_(
+                or_(
+                    Doc.title.ilike(f'%{search_query}%'),
+                    Doc.human_readable.ilike(f"%{search_query}%")
+                ),
+                Line.status == "Pending"
+            )
+        ).distinct()
+    else:
+        query = Doc.query.filter(or_(
+            Doc.title.ilike(f'%{search_query}%'),
+            Doc.human_readable.ilike(f"%{search_query}%")
+        ))
+
+    query = query.order_by(func.lower(Doc.human_readable), func.lower(Doc.title))
+
+
 
     # Set up pagination (e.g., 10 documents per page)
     page = request.args.get('page', 1, type=int)
@@ -65,7 +81,8 @@ def documents_route():
         "docs.html",
         documents=documents_paginated.items,
         pagination=documents_paginated,
-        search_query=search_query
+        search_query=search_query,
+        hide=hide_query
     )
 
 

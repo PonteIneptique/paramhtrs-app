@@ -14,6 +14,11 @@
             <a class="btn btn-secondary btn-sm" href="{{url_for('bp_main.documents_route')}}?download=True&incomplete=True"><i class="fa-solid fa-file-arrow-down"></i> Download all documents with corrections</a>
         </p>
         <hr/>
+        {% if hide %}
+            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query)}}"><i class="fa-solid fa-eye"></i> Show all</a>
+        {% else %}
+            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query, hide=True)}}"><i class="fa-solid fa-eye-closed"></i> Hide done</a>
+        {% endif %}
         <ul class="list-group mt-3">
             {% for doc in documents %}
                 {% set validation_percentage = doc.validation_percentage %}
@@ -34,7 +39,7 @@
             <ul class="pagination justify-content-center">
                 {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('bp_main.documents_route', page=pagination.prev_num, search=search_query) }}" aria-label="Previous">
+                        <a class="page-link" href="{{ url_for('bp_main.documents_route', page=pagination.prev_num, search=search_query, hide=hide) }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
@@ -43,7 +48,7 @@
                 {% for page_num in pagination.iter_pages() %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('bp_main.documents_route', page=page_num, search=search_query) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('bp_main.documents_route', page=page_num, search=search_query, hide=hide) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -52,7 +57,7 @@
 
                 {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('bp_main.documents_route', page=pagination.next_num, search=search_query) }}" aria-label="Next">
+                        <a class="page-link" href="{{ url_for('bp_main.documents_route', page=pagination.next_num, search=search_query, hide=hide) }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>

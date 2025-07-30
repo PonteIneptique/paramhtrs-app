@@ -3,7 +3,12 @@
 {% block content %}
 
     <div id="document-text-container">
+        {% if document.human_readable %}
+        <h2 id="document-humanreadabletitle">{{ document.human_readable }}</h2>
+        <h3 id="document-title">{{ document.title }}</h3>
+        {% else %}
         <h2 id="document-title">{{ document.title }}</h2>
+        {% endif %}
         <!-- Add a form to change the document's human-readable title -->
         <div class="row">
             <div class="col-8">
