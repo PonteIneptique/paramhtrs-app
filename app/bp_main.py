@@ -20,7 +20,7 @@ def home_route():
 def documents_route():
     # Get the filter query from the request, if provided
     search_query = request.args.get('search', '')
-    hide_query = request.args.get('hide', False, type=bool)
+    hide_query = request.args.get('hide', 0, type=int)
 
     if request.args.get("download"):
         if request.args.get("incomplete"):
@@ -51,7 +51,7 @@ def documents_route():
         )
 
     # Apply the search filter if there's a query, and order by title
-    if hide_query:
+    if hide_query == 1:
         query = Doc.query.join(Doc.lines).filter(
             and_(
                 or_(

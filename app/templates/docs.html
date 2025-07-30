@@ -15,9 +15,9 @@
         </p>
         <hr/>
         {% if hide %}
-            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query)}}"><i class="fa-solid fa-eye"></i> Show all</a>
+            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query, hide=0)}}"><i class="fa-solid fa-eye"></i> Show all</a>
         {% else %}
-            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query, hide=True)}}"><i class="fa-solid fa-eye-closed"></i> Hide done</a>
+            <a class="btn btn-primary btn-sm" href="{{url_for('bp_main.documents_route', page=pagination.page, search=search_query, hide=1)}}"><i class="fa-solid fa-eye-closed"></i> Hide done</a>
         {% endif %}
         <ul class="list-group mt-3">
             {% for doc in documents %}
