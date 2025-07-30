@@ -107,9 +107,42 @@ class Line(db.Model):
         self.status = data.get("status", self.status)
 
 
+def import_prepared_doc(jdoc):
+    """ Import a more prepared format
+    """
+    try:
+        # Check if document already exists
+        existing_doc = Doc.query.filter_by(title=jdoc["title"]).first()
+        if existing_doc:
+            yield f"Document with ID {jdoc["title"]} already exists. Skipping...", "warning", "bold"
+            return
+
+        doc = Doc(title=jdoc["title"], human_readable=jdoc["human_readable"], text=jdoc["text"])
+        db.session.add(doc)
+        db.session.flush()
+        yield f"Document {jdoc["title"]} created successfully.", "success", "bold"
+
+        start = 0
+        for line in jdoc["lines"]:
+            line = Line(canonical=line["abbr"], normalized=line["expan"], merge=line["merge"], start=start,
+                 doc_id=doc.id)
+            db.session.add(line)
+            start += len(line.canonical+"\n")
+            yield f"Line added: {line.canonical}", "info", ""
+
+        db.session.commit()  # Save all lines
+        yield f"Document `{doc.human_readable}` import completed.", "success", ""
+    except Exception as E:
+        db.session.rollback()
+        raise E
+
 def import_jsonl_stream(file_stream):
     for line in file_stream:
         j = json.loads(line)
+
+        if j.get("format", "passim") != "passim":
+            yield from import_prepared_doc(j)
+            continue
 
         # Check if document already exists
         existing_doc = Doc.query.filter_by(title=j["id"]).first()
