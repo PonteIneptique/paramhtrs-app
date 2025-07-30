@@ -137,6 +137,9 @@ def line_route(doc_id, line_id):
 @login_required
 def lines_route(doc_id):
     doc = Doc.query.get_or_404(doc_id)
+    if request.args.get("prettyPrint"):
+        return render_template(
+            "prettyPrint.html", lines=doc.lines, document=doc)
     return render_template(
         "lines.html", lines=doc.lines, document=doc)
 

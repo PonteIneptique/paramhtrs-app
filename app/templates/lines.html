@@ -11,6 +11,10 @@
         {% endif %}
         <!-- Add a form to change the document's human-readable title -->
         <div class="row">
+            <div class="col-4">
+                <a class="btn btn-primary" href="{{url_for("bp_main.lines_route", doc_id=document.id, prettyPrint=True)}}"><i class="fa-solid fa-eye"></i> Check</a> |
+                <a class="btn btn-primary btn-small" href="{{ url_for('bp_main.document_route', doc_id=document.id) }}"><i class="fa-solid fa-file-arrow-down"></i></a>
+            </div>
             <div class="col-8">
                 <form method="POST" id="rename-form">
                     <div class="input-group">
@@ -18,9 +22,6 @@
                       <button class="btn btn-outline-secondary" type="submit" id="adapt-title">Change title</button>
                     </div>
                 </form>
-            </div>
-            <div class="col-4">
-                <a class="btn btn-primary btn-small" href="{{ url_for('bp_main.document_route', doc_id=document.id) }}"><i class="fa-solid fa-file-arrow-down"></i></a>
             </div>
         </div>
         <hr />
@@ -56,6 +57,7 @@
                         <td>
                             <button class="btn btn-success btn-sm" onclick="saveLine(this.closest('tr'))">Validate</button>
                             <button class="btn btn-danger btn-sm" onclick="saveLine(this.closest('tr'))">Exclude</button>
+                            <button class="btn btn-warning btn-sm" onclick="noiseBefore(this.closest('tr'))">+ Noise</button>
                         </td>
                         <td class="status-cell">{{line.status}}</td>
                     </tr>
@@ -114,7 +116,6 @@
             textElement.innerHTML = highlightedText;
 
             let highlighted = textElement.querySelector('.highlight');
-            console.log(highlighted);
             if (highlighted) {
               const container = textElement.parentNode;
               const highlightRect = highlighted.getBoundingClientRect();
@@ -124,35 +125,48 @@
 
               const scrollTop = container.scrollTop;
               const containerHeight = container.clientHeight;
-              console.log(offsetTop, offsetBottom, scrollTop, containerHeight, container);
               if (offsetTop < scrollTop) {
-                console.log("above");
                 // Element is above the view
                 textElement.parentNode.scrollTo({ top: offsetTop - highlighted.offsetHeight, behavior: 'smooth' });
               } else if (offsetBottom > scrollTop + containerHeight) {
-                console.log("below");
                 // Element is below the view
                 textElement.parentNode.scrollTo({ top: offsetBottom - containerHeight + 10, behavior: 'smooth' });
               }
             }
 
+            const tr = td.closest('tr');
+            if (!tr) return;
 
-            // Display line content above the current focused cell
-            let lineContent = td.textContent.trim();
-            let contentDisplay = document.createElement("div");
-            contentDisplay.style.position = "absolute";
-            contentDisplay.className = "junicode";
-            contentDisplay.style.top = `${td.getBoundingClientRect().top - 30 + window.scrollY}px`;
-            contentDisplay.style.left = `${td.getBoundingClientRect().left + window.scrollX}px`;
-            contentDisplay.style.backgroundColor = "#fff";
-            contentDisplay.style.padding = "5px";
-            contentDisplay.style.border = "1px solid #ddd";
-            contentDisplay.textContent = originalText.slice(start, end);
-            document.body.appendChild(contentDisplay);
+            tr.parentNode.querySelectorAll(".importedtext").forEach(
+                el => { tr.parentNode.removeChild(el); }
+            );
 
-            td.addEventListener('blur', function() {
-                contentDisplay.remove();
-            });
+            // Count how many columns (td or th elements) are in the row
+            const columnCount = tr.children.length;
+
+            // Insert a temporary row before the current one
+            const tempTr = document.createElement('tr');
+            const tempTd = document.createElement('td');
+            tempTd.setAttribute('colspan', columnCount);
+            tempTr.appendChild(tempTd);
+            tempTr.className = "importedtext";
+            tempTd.className = "junicode";
+            tempTd.textContent = originalText.slice(start, end);
+            tr.parentNode.insertBefore(tempTr, tr);
+
+<!--            // Display line content above the current focused cell-->
+<!--            let lineContent = td.textContent.trim();-->
+<!--            let contentDisplay = document.createElement("div");-->
+<!--            contentDisplay.style.position = "absolute";-->
+<!--            contentDisplay.className = "junicode";-->
+<!--            contentDisplay.style.top = `${td.getBoundingClientRect().top - 30 + window.scrollY}px`;-->
+<!--            contentDisplay.style.left = `${td.getBoundingClientRect().left + window.scrollX}px`;-->
+<!--            contentDisplay.style.backgroundColor = "#fff";-->
+<!--            contentDisplay.style.padding = "5px";-->
+<!--            contentDisplay.style.border = "1px solid #ddd";-->
+<!--            contentDisplay.textContent = originalText.slice(start, end);-->
+<!--            document.body.appendChild(contentDisplay);-->
+
         }
 
         function removeHighlight() {
@@ -282,6 +296,31 @@ function saveLine(row) {
         "merge": mergeWithPrevious,
         "status": "Validated"
     });
+}
+
+function noiseBefore(row) {
+    let editableTd = row.querySelector(".editable-cell");
+    editableTd.innerText = generateString() + editableTd.innerText;
+}
+
+function generateString() {
+  const selection = window.getSelection();
+
+  if (!selection || selection.rangeCount === 0) {
+    alert("No active selection.");
+    return "";
+  }
+
+  const range = selection.getRangeAt(0);
+
+  const selectedText = selection.toString();
+  const length = selectedText.length;
+  let randomString = "";
+
+  for (let i = 0; i < length; i++) {
+    randomString += "#";
+  }
+  return randomString + " ";
 }
 
     </script>

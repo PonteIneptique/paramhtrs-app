@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <div id="document-text-container">
+        {% if document.human_readable %}
+        <h2 id="document-humanreadabletitle">{{ document.human_readable }}</h2>
+        <h3 id="document-title">{{ document.title }}</h3>
+        {% else %}
+        <h2 id="document-title">{{ document.title }}</h2>
+        {% endif %}
+        <a href="{{url_for("bp_main.lines_route", doc_id=document.id)}}">Back to edition</a>
+    </div>
+
+    <div class="container content-container">
+        <h4>Lines:</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Normalized</th>
+                </tr>
+            </thead>
+            <tbody>
+          {% set rows = [] %}
+          {% for line in document.lines %}
+            {% if line.merge and rows %}
+              {# Append to the last row's values #}
+              {% set _ = rows[-1][0].append('' ~ line.canonical) %}
+              {% set _ = rows[-1][1].append('' ~ line.normalized) %}
+            {% else %}
+              {# Create a new row as two-element list of [canonical, normalized] #}
+              {% set _ = rows.append([[line.canonical], [line.normalized]]) %}
+            {% endif %}
+          {% endfor %}
+
+          {# Output the rows #}
+          {% for row in rows %}
+            <tr>
+              <td>{{ row[0]|join('<span style="font-weight: bold; color: red;">-</span>'|safe) }}</td>
+              <td>{{ row[1]|join('') }}</td>
+            </tr>
+          {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
